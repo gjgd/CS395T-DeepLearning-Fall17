@@ -40,9 +40,9 @@ void createClassDir(std::map<std::string, std::vector<std::string>> map, std::st
 int main(int argc, char* argv[])
 {
 	std::string line;
-	std::string filename = TYPE ? "yearbook_valid.csv" : "yearbook_train.csv";
+	std::string filename = TYPE ? "yearbook_valid.txt" : "yearbook_train.txt";
 	std::string type = TYPE ? "valid" : "train";
-	std::string delimiter = ",";
+	std::string delimiter = "\t";
 
 	std::map<std::string, std::vector<std::string>> yearImMap;
 	std::map<std::string, std::vector<std::string>> yearImMapMale;
@@ -74,7 +74,12 @@ int main(int argc, char* argv[])
 		myfile.close();
 	}
 
-	std::string dirCreateStr = "mkdir keras_yearbook/" + type; 
+	system("rm -rf keras_yearbook");
+
+	std::string dirCreateStr = "mkdir keras_yearbook";
+	system(dirCreateStr.c_str());
+
+	dirCreateStr = "mkdir keras_yearbook/" + type; 
 	system(dirCreateStr.c_str());
 
 	if(!SEP_BY_GENDER)

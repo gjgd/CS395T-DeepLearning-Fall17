@@ -1,0 +1,16 @@
+Compile: 
+	g++ -std=c++11 process_data.cpp -o process_data <COMPILATION_OPTIONS>
+
+Compilation options:
+
+	-DSEP_BY_GENDER
+		-DSEP_BY_GENDER=true separates data by gender
+		-DSEP_BY_GENDER=false (default) does not separates data by gender
+	-DTYPE
+		Applies process_data on either training or validation set	
+		-DTYPE=0 Training set
+		-DTYPE=1 Validation set
+
+
+Execution:
+	Execute ./process_data in the yearbook dataset folder
