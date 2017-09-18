@@ -74,12 +74,10 @@ int main(int argc, char* argv[])
 		myfile.close();
 	}
 
-	system("rm -rf keras_yearbook");
-
-	std::string dirCreateStr = "mkdir keras_yearbook";
+	std::string dirCreateStr = "mkdir -p keras_yearbook";
 	system(dirCreateStr.c_str());
 
-	dirCreateStr = "mkdir keras_yearbook/" + type; 
+	dirCreateStr = "mkdir -p keras_yearbook/" + type; 
 	system(dirCreateStr.c_str());
 
 	if(!SEP_BY_GENDER)
@@ -88,10 +86,10 @@ int main(int argc, char* argv[])
 	}
 	else
 	{
-		dirCreateStr = "mkdir keras_yearbook/" + type + "/M";
+		dirCreateStr = "mkdir -p keras_yearbook/" + type + "/M";
 		system(dirCreateStr.c_str());
 
-		dirCreateStr = "mkdir keras_yearbook/" + type + "/F";
+		dirCreateStr = "mkdir -p keras_yearbook/" + type + "/F";
 		system(dirCreateStr.c_str());
 
 		createClassDir(yearImMapMale, type, "M");
