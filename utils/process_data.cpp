@@ -3,6 +3,7 @@
 #include<string>
 #include<fstream>
 #include<map>
+#include<algorithm>
 using namespace std;
 
 #ifndef SEP_BY_GENDER
@@ -14,20 +15,21 @@ enum
 	VALID = 1,
 };
 
-#ifndef TYPE
-#define TYPE 0 
-#endif
-
-void createClassDir(std::map<std::string, std::vector<std::string>> map, std::string type, std::string postFix)
+void createClassDir(std::vector<std::string> years, std::map<std::string, std::vector<std::string>> map, std::string type, std::string postFix)
 {
 	std::string postFixString = (postFix != "") ? postFix + "/" : "";
+
+	for(unsigned i = 0; i < years.size(); i++)
+	{
+		std::string dirCreateStr = "mkdir keras_yearbook/" + type + "/" + postFixString + years[i];
+		system(dirCreateStr.c_str());
+	}
+
 	for(std::map<std::string, std::vector<std::string>>::iterator it = map.begin(); it != map.end(); it++)
 	{
 		std::string year = it->first;
 		std::vector<std::string> images =  it->second;
 	
-		std::string dirCreateStr = "mkdir keras_yearbook/" + type + "/" + postFixString + year;
-		system(dirCreateStr.c_str());
 	
 		for(int i = 0; i < images.size(); i++)
 		{
@@ -37,13 +39,10 @@ void createClassDir(std::map<std::string, std::vector<std::string>> map, std::st
 	}
 }
 
-int main(int argc, char* argv[])
+void processData(std::string filename, std::string type, std::vector<std::string>& years)
 {
 	std::string line;
-	std::string filename = TYPE ? "yearbook_valid.txt" : "yearbook_train.txt";
-	std::string type = TYPE ? "valid" : "train";
 	std::string delimiter = "\t";
-
 	std::map<std::string, std::vector<std::string>> yearImMap;
 	std::map<std::string, std::vector<std::string>> yearImMapMale;
 	std::map<std::string, std::vector<std::string>> yearImMapFemale;
@@ -59,15 +58,22 @@ int main(int argc, char* argv[])
 			if(!SEP_BY_GENDER)
 			{
 				yearImMap[year].push_back(image);			
+				if(type == "train") years.push_back(year);
 			}
 			else
 			{
 				std::string delim = "/";
 				std::string gender = image.substr(0, line.find(delim));
 				if(gender == "M")
+				{
+					if(type == "train") years.push_back(year);
 					yearImMapMale[year].push_back(image);
+				}
 				else
+				{
+					if(type == "train") years.push_back(year);
 					yearImMapFemale[year].push_back(image);
+				}
 			}
 
 		}
@@ -80,9 +86,13 @@ int main(int argc, char* argv[])
 	dirCreateStr = "mkdir -p keras_yearbook/" + type; 
 	system(dirCreateStr.c_str());
 
+	std::sort(years.begin(), years.end());
+	auto last = std::unique(years.begin(), years.end());
+	years.erase(last, years.end());
+
 	if(!SEP_BY_GENDER)
 	{
-		createClassDir(yearImMap, type, "");
+		createClassDir(years, yearImMap, type, "");
 	}
 	else
 	{
@@ -92,9 +102,17 @@ int main(int argc, char* argv[])
 		dirCreateStr = "mkdir -p keras_yearbook/" + type + "/F";
 		system(dirCreateStr.c_str());
 
-		createClassDir(yearImMapMale, type, "M");
-		createClassDir(yearImMapFemale, type, "F");
+		createClassDir(years, yearImMapMale, type, "M");
+		createClassDir(years, yearImMapFemale, type, "F");
 	}
+}
+
+int main(int argc, char* argv[])
+{
+	std::vector<std::string> years;
+
+	processData("yearbook_train.txt", "train", years);
+	processData("yearbook_valid.txt", "valid", years);
 
 	return 0;
 }	
