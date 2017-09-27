@@ -42,7 +42,7 @@ model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2,2), strides=(1,1), padding='valid'))
 model.add(Dropout(0.25))
 
-model.add(Conv2D(128, (5,5,), strides=(4,4), padding='same'))
+model.add(Conv2D(128, (5,5), strides=(4,4), padding='same'))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(2,2), strides=(1,1), padding='valid'))
 model.add(Dropout(0.5))
