@@ -57,7 +57,7 @@ import collections
 
 data_path = '/work/04381/ymarathe/maverick/yearbook/'
 path = '/home/05145/anikeshk/CS395T-DeepLearning-Fall17/model/'
-
+f = open(data_path + 'yearbook_train.txt', 'r')
 WEIGHTS_PATH_NO_TOP = 'https://github.com/fchollet/deep-learning-models/releases/download/v0.2/resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5'
 
 
@@ -139,16 +139,51 @@ def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2))
     x = Activation('relu')(x)
     return x
 
+freq = {}
+fnamemap = {}
+year2idx = {}
+idx = 0
+normal_const = 0
 
+for line in f:
+    line = line.rstrip()
+    image, year = line.split("\t")
+    fnamemap[image] = year
+    if year in freq:
+        freq[year] += 1
+    else:
+        freq[year] = 1
 
+normal_const = np.sum(freq.values())
+for key in freq:
+    freq[key] = freq[key]/float(normal_const)
+    
+sorted_freq = collections.OrderedDict(sorted(freq.items()))
+
+class_weights_train = {}
+idx2year = {}
+year2idx = {}
+
+for idx, key in enumerate(sorted_freq):
+    class_weights_train[idx] = sorted_freq[key]
+    idx2year[idx] = key
+    year2idx[key] = idx
+
+def gen_batches(path, gen = ImageDataGenerator(), shuffle=True, class_mode="categorical", batch_size=32, 
+                target_size=(171, 186)):
+    return gen.flow_from_directory(path, shuffle=shuffle, batch_size=batch_size, target_size=target_size, 
+                                   class_mode=class_mode)
 
 
 class ClassDataGen:
-    def __init__(self, directory, map_file, target_size = (171, 186, 3), 
-                 class_weights_train = None, multi_output=False, do_augmentation=True, 
+    def __init__(self, directory, map_file, 
+                 target_size = (171, 186, 3), 
+                 class_weights_train = None, 
+                 multi_output=False, 
+                 do_augmentation=True, 
                  samplewise_center = True,
                  samplewise_std_deviation = True,
-                 multi_input=False, year2idx = None
+                 year2idx = None
                 ):
         self.directory = directory
         self.map_file = map_file
@@ -171,9 +206,8 @@ class ClassDataGen:
         self.class_weights_train = class_weights_train
         self.equalizehist = False
         self.multi_output = multi_output
-        self.multi_input = multi_input
         self.lastN = []
-        self.year2idx = year2idx
+        self.year2idx = year2idx;
         
     def _recursive_list(self, subpath):
         return sorted(
@@ -216,13 +250,6 @@ class ClassDataGen:
         x = random_zoom(x, self.zoom_range, row_axis = 0, col_axis = 1, channel_axis = 2)
         
         return x
-
-    def oneHotEncodeYear(self, year):
-        integerEncoded = self.year2idx[year]
-        oneHotVec = [0 for _ in range(len(self.year2idx))]
-        oneHotVec[integerEncoded] = 1
-        return oneHotVec
-    
             
     def flow_from_directory(self, batch_size = 32, shuffle = True, seed = 42):
         
@@ -237,6 +264,17 @@ class ClassDataGen:
         
         return self
     
+    def oneHotEncodeYear(self, year):
+        integerEncoded = self.year2idx[year]
+        oneHotVec = [0 for _ in range(len(self.year2idx))]
+        oneHotVec[integerEncoded] = 1
+        return oneHotVec
+    
+    def oneHotEncodeGender(self, gender):
+        oneHotVec = [0, 0]
+        oneHotVec[gender] = 1;
+        return oneHotVec
+    
     def next(self, *args, **kwargs):
            
         self.lastN = []
@@ -245,14 +283,11 @@ class ClassDataGen:
         
         batch_x = np.zeros(tuple([len(idx_array)] + list(self.target_size)), dtype=K.floatx())
         
-        batch_y = np.zeros(tuple([len(idx_array)]), dtype=K.floatx())
+        batch_y = np.zeros(tuple([len(idx_array)] + list([len(self.year2idx)])), dtype=K.floatx())
         
         if self.multi_output:
-            batch_y_gender = np.zeros(tuple([len(idx_array)]), dtype=K.floatx())
-    
-        if self.multi_input:
-            batch_x_gender = np.zeros(tuple([len(idx_array)]), dtype=K.floatx())
-        
+            batch_y_gender = np.zeros(tuple([len(idx_array)] + list([2])), dtype=K.floatx())
+
         if self.class_weights_train is not None:
             sample_weights = np.ones(tuple([len(idx_array)]), dtype=K.floatx())
         
@@ -266,19 +301,16 @@ class ClassDataGen:
             x = np.array(img_to_array(img, data_format='channels_last'))
             x = self.preprocess(x)
             batch_x[i] = x
-            batch_y[i] = self.map[fname]
+            batch_y[i, :] = self.oneHotEncodeYear(self.map[fname])
             
             if self.multi_output:
-                batch_y_gender[i] = self.fnameToGender[fname]
-            
-            if self.multi_input:
-                batch_x_gender[i] = self.fnameToGender[fname]
+                batch_y_gender[i, :] = self.oneHotEncodeGender(self.fnameToGender[fname])
             
             if self.class_weights_train is not None:
                 if self.multi_output:
-                    sample_weights[i] = self.class_weights_train[batch_y[i].astype('int').astype('str')]
+                    sample_weights[i] = self.class_weights_train[self.map[fname]]
                 else:
-                    sample_weights[i] = self.class_weights_train[batch_y[i].astype('int').astype('str')]
+                    sample_weights[i] = self.class_weights_train[self.map[fname]]
         
         if self.samplewise_center:
             for x in batch_x:
@@ -297,12 +329,6 @@ class ClassDataGen:
                 return batch_x, {'out_year' : batch_y, 'out_gender': batch_y_gender}, {'out_year' : sample_weights, 'out_gender' : sample_weights} 
             else:
                 return batch_x, {'out_year' : batch_y, 'out_gender': batch_y_gender}
-            
-        elif self.multi_input:
-            if self.class_weights_train is not None:
-                return {'input_1' : batch_x, 'input_2': batch_x_gender}, batch_y, sample_weights
-            else:
-                return {'input_1' : batch_x, 'input_2': batch_x_gender}, batch_y
         else:    
             if self.class_weights_train is not None:
                 return (batch_x, batch_y, sample_weights)
@@ -310,6 +336,25 @@ class ClassDataGen:
                 return (batch_x, batch_y)
 
 f = open(data_path + 'yearbook_train.txt', 'r')
+
+train = ClassDataGen(data_path + 'train',
+                       data_path + 'yearbook_train.txt', 
+                       class_weights_train = sorted_freq, 
+                       multi_output=False,
+                       do_augmentation=True,
+                       year2idx = year2idx
+                       )
+
+valid = ClassDataGen(data_path + 'valid',
+                       data_path + 'yearbook_valid.txt',
+                       class_weights_train = sorted_freq,
+                       do_augmentation=False,
+                       multi_output=False,
+                       year2idx = year2idx
+                      )
+
+train = train.flow_from_directory()
+valid = valid.flow_from_directory(shuffle=False)
 
 freq = {}
 normal_const = 0
@@ -341,21 +386,6 @@ for idx, key in enumerate(sorted_freq):
     idx2year[idx] = key
     year2idx[key] = idx
 
-train = ClassDataGen(data_path + 'train',
-                       data_path + 'yearbook_train.txt', 
-                       class_weights_train = sorted_freq,
-                       do_augmentation = True,
-                       year2idx = year2idx
-                      )
-valid = ClassDataGen(data_path + 'valid',
-                       data_path + 'yearbook_valid.txt',
-                       class_weights_train = sorted_freq, 
-                       do_augmentation = False,
-                       year2idx = year2idx
-                      )
-
-train = train.flow_from_directory()
-valid = valid.flow_from_directory(shuffle=False)
 
 
 
@@ -507,7 +537,7 @@ resnet_model.fit_generator(train, steps_per_epoch = train.steps, epochs = 5,
 resnet_model.save_weights("/home/05145/anikeshk/CS395T-DeepLearning-Fall17/model/" + 'resnetweights_exp1.h5')
 
 pred = resnet_model.predict_generator(valid, shuffle=False)
-score = alex_model.evaluate_generator(value, verbose=0)
+score = resnet_model.evaluate_generator(value, verbose=0)
 
 print('Valid loss:', score[0])
 print('Valid accuracy:', score[1])
