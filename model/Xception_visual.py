@@ -1,9 +1,8 @@
 
 # coding: utf-8
-import matplotlib.cm as cm
+
 # In[1]:
-import skimage.io as sio
-import pylab as pl
+
 import keras
 from keras.preprocessing.image import ImageDataGenerator
 from keras.layers import Conv2D, MaxPooling2D, Dense, BatchNormalization, Dropout, Flatten, Activation, Lambda, Input
@@ -301,10 +300,22 @@ if training:
         print("Saved " + filename)
         
 else:
-    img_input = Input(shape=(171, 186, 3))
-    model.load_weights('/work/05148/picsou/maverick/' + 'will_{}.h5'.format(13))
-    input_img = model.input
+    
     K.set_learning_phase(0)
+    pretrained_model = Xception(include_top=False, weights='imagenet', input_shape=(171, 186, 3))
+    x = pretrained_model.output
+    x = Conv2D(8, (1, 1), activation='relu')(x)
+    x = Flatten()(x)
+    x = Dense(16, activation='relu', bias_initializer=keras.initializers.Ones())(x)
+#x = BatchNormalization()(x)
+    predicted_year = Dense(1, bias_initializer = keras.initializers.Constant(mean_value))(x)
+
+    model = Model(inputs=pretrained_model.input, outputs=predicted_year)
+    model.load_weights('/work/05148/picsou/maverick/' + 'will_{}.h5'.format(13))
+    model.summary()
+    
+    input_img = model.input
+    
     
     print(len(model.layers))
     layer_dict = dict([(layer.name, layer) for layer in model.layers])
@@ -313,13 +324,14 @@ else:
     filter_idx = 3
     lay = layer_dict[layer_name]
     layer_output = layer_dict[layer_name].output
-    model_input = layer_dict['input_1']
+    #model_input = layer_dict['input_1']
     loss = K.mean(layer_output[:,:,:,filter_idx])
     
-    #lay_f = K.function([img_input, K.learning_phase()], lay.output(train=False))
+    #lay_f = K.function(modelinput.input(train=False), lay.output(train=False))
+      
+    batch_x, batch_y, sample_weight = next(valid)
+    X = batch_x[1]
     
-    
-
     def nice_imshow( data, f_i, l_n, vmin=None, vmax=None, cmap=None):
     ###"""Wrapper around pl.imshow"""
         if cmap is None:
@@ -332,33 +344,26 @@ else:
         #cax = divider.append_axes("right", size="5%", pad=0.05)
         #im = ax.imshow(data, vmin=vmin, vmax=vmax, interpolation='nearest', cmap=cmap)
         imsave('%s_filter_%d.png' % (l_n, f_i), data)
-	#pl.colorbar(im, cax=cax)
-        
-    batch_x, batch_y, sample_weight = next(valid)
-    X = batch_x[1]
     
     #pl.figure()
     #pl.title('input')
-  
-    nice_imshow(np.squeeze(X), filter_idx, layer_name, vmin=0, vmax=1, cmap=cm.binary)
-        
-
+    #nice_imshow(pl.gca(), np.squeeze(X), vmin=0, vmax=1, cmap=cm.binary)
+    #nice_imshow(np.squeeze(X), filter_idx, layer_name, vmin=0, vmax=1, cmap=cm.binary)
     
+    grads = K.gradients(loss, input_img)[0]
+    grads /= (K.sqrt(K.mean(K.square(grads))) + 1e-5)
+    iterate = K.function([input_img], [loss, grads])
     
-    
-    #grads = K.gradients(loss, input_img)[0]
-    #grads /= (K.sqrt(K.mean(K.square(grads))) + 1e-5)
-    #iterate = K.function([input_img], [loss, grads])
-    
-    '''
     batch_x, batch_y, sample_weight = next(valid)
 # we start from a gray image with some noise
     input_img_data = batch_x
+    step = 1
 # run gradient ascent for 20 steps
-    for i in range(20):
+    for i in range(7):
+	print i
         loss_value, grads_value = iterate([input_img_data])
         input_img_data += grads_value * step
-   '''     
+    
     
 
 # util function to convert a tensor into a valid image
@@ -373,18 +378,20 @@ else:
         x = np.clip(x, 0, 1)
 
     # convert to RGB array
-        x *= 255
-        x = x.transpose((1, 2, 0))
-        x = np.clip(x, 0, 255).astype('uint8')
+        #x *= 255
+        #x = x.transpose((1, 2, 0))
+        #x = np.clip(x, 0, 255).astype('uint8')
         return x
 
-    #img = input_img_data[0]
-    #img = deprocess_image(img)
-    #imsave('%s_filter_%d.png' % (layer_name, filter_index), img)
+    img = input_img_data[0]
+    print(img.shape)
+    img = deprocess_image(img)
+    print(img.shape)
+    imsave('%s_filter_%d.png' % (layer_name, filter_idx), img)
         
     
     
-    print(model.metrics_names)
+    #print(model.metrics_names)
     #print("Model loaded")
     #print(model.evaluate_generator(valid, valid.steps))
     
