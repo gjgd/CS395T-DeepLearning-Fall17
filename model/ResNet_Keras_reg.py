@@ -1,3 +1,6 @@
+## Adapted from Chollet's representation as built in model for Keras
+##https://github.com/fchollet/deep-learning-models
+
 import numpy as np
 import warnings
 
@@ -272,6 +275,7 @@ for key in freq:
 
 idx2year = {}
 year2idx = {}
+class_weights_train = {}
 
 for idx, key in enumerate(sorted_freq):
     class_weights_train[idx] = sorted_freq[key]
@@ -296,7 +300,7 @@ valid = valid.flow_from_directory(shuffle=False)
 
 
 
-# def identity_block(input_tensor, kernel_size, filters, stage, block):
+def identity_block(input_tensor, kernel_size, filters, stage, block):
 #     """The identity block is the block that has no conv layer at shortcut.
 #     # Arguments
 #         input_tensor: input tensor
@@ -307,32 +311,34 @@ valid = valid.flow_from_directory(shuffle=False)
 #     # Returns
 #         Output tensor for the block.
 #     """
-#     filters1, filters2, filters3 = filters
-#     if K.image_data_format() == 'channels_last':
-#         bn_axis = 3
-#     else:
-#         bn_axis = 1
-#     conv_name_base = 'res' + str(stage) + block + '_branch'
-#     bn_name_base = 'bn' + str(stage) + block + '_branch'
+     filters1, filters2, filters3 = filters
+     bn_axis = 3
+     if K.image_data_format() == 'channels_last':
+         bn_axis = 3
+     else:
+         bn_axis = 1
+     
+     conv_name_base = 'res' + str(stage) + block + '_branch'
+     bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-#     x = Conv2D(filters1, (1, 1), name=conv_name_base + '2a')(input_tensor)
-#     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
-#     x = Activation('relu')(x)
+     x = Conv2D(filters1, (1, 1), name=conv_name_base + '2a')(input_tensor)
+     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
+     x = Activation('relu')(x)
 
-#     x = Conv2D(filters2, kernel_size,
-#                padding='same', name=conv_name_base + '2b')(x)
-#     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
-#     x = Activation('relu')(x)
+     x = Conv2D(filters2, kernel_size,
+                padding='same', name=conv_name_base + '2b')(x)
+     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
+     x = Activation('relu')(x)
 
-#     x = Conv2D(filters3, (1, 1), name=conv_name_base + '2c')(x)
-#     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
+     x = Conv2D(filters3, (1, 1), name=conv_name_base + '2c')(x)
+     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
 
-#     x = layers.add([x, input_tensor])
-#     x = Activation('relu')(x)
-#     return x
+     x = layers.add([x, input_tensor])
+     x = Activation('relu')(x)
+     return x
 
 
-# def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
+def conv_block(input_tensor, kernel_size, filters, stage, block, strides=(2, 2)):
 #     """conv_block is the block that has a conv layer at shortcut
 #     # Arguments
 #         input_tensor: input tensor
@@ -345,81 +351,76 @@ valid = valid.flow_from_directory(shuffle=False)
 #     Note that from stage 3, the first conv layer at main path is with strides=(2,2)
 #     And the shortcut should have strides=(2,2) as well
 #     """
-#     filters1, filters2, filters3 = filters
-#     if K.image_data_format() == 'channels_last':
-#         bn_axis = 3
-#     else:
-#         bn_axis = 1
-#     conv_name_base = 'res' + str(stage) + block + '_branch'
-#     bn_name_base = 'bn' + str(stage) + block + '_branch'
+     filters1, filters2, filters3 = filters
+     if K.image_data_format() == 'channels_last':
+         bn_axis = 3
+     else:
+         bn_axis = 1
+     conv_name_base = 'res' + str(stage) + block + '_branch'
+     bn_name_base = 'bn' + str(stage) + block + '_branch'
 
-#     x = Conv2D(filters1, (1, 1), strides=strides,
-#                name=conv_name_base + '2a')(input_tensor)
-#     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
-#     x = Activation('relu')(x)
+     x = Conv2D(filters1, (1, 1), strides=strides,
+                name=conv_name_base + '2a')(input_tensor)
+     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2a')(x)
+     x = Activation('relu')(x)
 
-#     x = Conv2D(filters2, kernel_size, padding='same',
-#                name=conv_name_base + '2b')(x)
-#     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
-#     x = Activation('relu')(x)
+     x = Conv2D(filters2, kernel_size, padding='same',
+                name=conv_name_base + '2b')(x)
+     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2b')(x)
+     x = Activation('relu')(x)
 
-#     x = Conv2D(filters3, (1, 1), name=conv_name_base + '2c')(x)
-#     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
+     x = Conv2D(filters3, (1, 1), name=conv_name_base + '2c')(x)
+     x = BatchNormalization(axis=bn_axis, name=bn_name_base + '2c')(x)
 
-#     shortcut = Conv2D(filters3, (1, 1), strides=strides,
-#                       name=conv_name_base + '1')(input_tensor)
-#     shortcut = BatchNormalization(axis=bn_axis, name=bn_name_base + '1')(shortcut)
+     shortcut = Conv2D(filters3, (1, 1), strides=strides,
+                       name=conv_name_base + '1')(input_tensor)
+     shortcut = BatchNormalization(axis=bn_axis, name=bn_name_base + '1')(shortcut)
 
-#     x = layers.add([x, shortcut])
-#     x = Activation('relu')(x)
-#     return x
-
-
-
-# def resnet_conv(img_input):
-# 	x = ZeroPadding2D((3, 3))(img_input)
-# 	x = Conv2D(64, (7, 7), strides=(2, 2), name='conv1')(x)
-# 	x = BatchNormalization(axis=bn_axis, name='bn_conv1')(x)
-# 	x = Activation('relu')(x)
-# 	x = MaxPooling2D((3, 3), strides=(2, 2))(x)
-
-# 	x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1))
-# 	x = identity_block(x, 3, [64, 64, 256], stage=2, block='b')
-# 	x = identity_block(x, 3, [64, 64, 256], stage=2, block='c')
-
-# 	x = conv_block(x, 3, [128, 128, 512], stage=3, block='a')
-# 	x = identity_block(x, 3, [128, 128, 512], stage=3, block='b')
-# 	x = identity_block(x, 3, [128, 128, 512], stage=3, block='c')
-# 	x = identity_block(x, 3, [128, 128, 512], stage=3, block='d')
-
-# 	x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a')
-# 	x = identity_block(x, 3, [256, 256, 1024], stage=4, block='b')
-# 	x = identity_block(x, 3, [256, 256, 1024], stage=4, block='c')
-# 	x = identity_block(x, 3, [256, 256, 1024], stage=4, block='d')
-# 	x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e')
-# 	x = identity_block(x, 3, [256, 256, 1024], stage=4, block='f')
-
-# 	x = conv_block(x, 3, [512, 512, 2048], stage=5, block='a')
-# 	x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b')
-# 	x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c')
-
-# 	x = AveragePooling2D((7, 7), name='avg_pool')(x)
-
-# 	return x
+     x = layers.add([x, shortcut])
+     x = Activation('relu')(x)
+     return x
 
 
-'''
-x = resnet_conv(img_input)
-x = Flatten()(x)
-output_year = Dense(1, bias_initializer = keras.initializers.Constant(mean_value))(x)
 
-resnet_model = Model([img_input],[output_year])
-'''
+def resnet_conv(img_input):
+    bn_axis = 3
+    x = ZeroPadding2D((3, 3))(img_input)
+    x = Conv2D(64, (7, 7), strides=(2, 2), name='conv1')(x)
+    x = BatchNormalization(axis=bn_axis, name='bn_conv1')(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D((3, 3), strides=(2, 2))(x)
+    
+    x = conv_block(x, 3, [64, 64, 256], stage=2, block='a', strides=(1, 1))
+    x = identity_block(x, 3, [64, 64, 256], stage=2, block='b')
+    x = identity_block(x, 3, [64, 64, 256], stage=2, block='c')
+    
+    x = conv_block(x, 3, [128, 128, 512], stage=3, block='a')
+    x = identity_block(x, 3, [128, 128, 512], stage=3, block='b')
+    x = identity_block(x, 3, [128, 128, 512], stage=3, block='c')
+    x = identity_block(x, 3, [128, 128, 512], stage=3, block='d')
+    
+    x = conv_block(x, 3, [256, 256, 1024], stage=4, block='a')
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='b')
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='c')
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='d')
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='e')
+    x = identity_block(x, 3, [256, 256, 1024], stage=4, block='f')
+    
+    x = conv_block(x, 3, [512, 512, 2048], stage=5, block='a')
+    x = identity_block(x, 3, [512, 512, 2048], stage=5, block='b')
+    x = identity_block(x, 3, [512, 512, 2048], stage=5, block='c')
+    
+    #x = AveragePooling2D((6, 6), name='avg_pool')(x)
+    
+    return x
+
 
 img_input = Input(shape=(171, 186, 3))
+x = resnet_conv(img_input)
+resnet_model1 = Model([img_input],[x])
 
-resnet_model1 = ResNet50(include_top=False, weights='imagenet', 
-    input_tensor=None, input_shape=(171, 186, 3), pooling=None, classes=104)
+#resnet_model1 = ResNet50(include_top=False, weights='imagenet', 
+#    input_tensor=None, input_shape=(171, 186, 3), pooling=None, classes=104)
 
 weights_path = get_file('resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5',
                         WEIGHTS_PATH_NO_TOP,
@@ -429,22 +430,24 @@ weights_path = get_file('resnet50_weights_tf_dim_ordering_tf_kernels_notop.h5',
 resnet_model1.load_weights(weights_path)
 
 for layer in resnet_model1.layers:
-    if type(layer) != Dense:
-        layer.trainable = False
+    layer.trainable = False
 
 y = resnet_model1.output
 
-x = Flatten()(y)
+x = Conv2D(8, (1, 1), activation='relu')(x)
+x = Flatten()(x)
+x = Dense(16, activation='relu', bias_initializer=keras.initializers.Ones())(x)
 x = Dense(1, bias_initializer = keras.initializers.Constant(mean_value))(x)
 resnet_model = Model([img_input],[x])
 
 
 lr = 1e-4
 
+#initially weights taken as 0.5
 
 resnet_model.compile(Adam(lr=lr), loss=['mse'], 
-              metrics=['mae'],
-              loss_weights = [0.5]
+              metrics=['mae']#,
+              #loss_weights = [0.5]
             )
 
 def lr_schedule(epoch):
@@ -452,16 +455,17 @@ def lr_schedule(epoch):
 
 resnet_model.summary()
 
-resnet_model.fit_generator(train, steps_per_epoch = train.steps, epochs = 1,
-                       validation_data = valid,
-                       validation_steps = valid.steps,
-                       callbacks=[LearningRateScheduler(lr_schedule),
-                    ModelCheckpoint(path + 'exp44.h5', save_best_only=True)])
+with tf.device('/gpu:0'):
+    resnet_model.fit_generator(train, steps_per_epoch = train.steps, epochs = 1,
+                           validation_data = valid,
+                           validation_steps = valid.steps,
+                           callbacks=[LearningRateScheduler(lr_schedule),
+                        ModelCheckpoint(path + 'exp471.h5', save_best_only=True)])
 
-resnet_model.save_weights("/home/05145/anikeshk/CS395T-DeepLearning-Fall17/model/" + 'resnetweights_exp21.h5')
+resnet_model.save_weights("/home/05145/anikeshk/CS395T-DeepLearning-Fall17/model/" + 'resnetweights_exp231.h5')
 
-pred = resnet_model.predict_generator(valid, shuffle=False)
-score = resnet_model.evaluate_generator(valid, verbose=0)
+#pred = resnet_model.predict_generator(valid, shuffle=False)
+score = resnet_model.evaluate_generator(valid, valid.steps)
 
 print('Valid loss:', score[0])
 print('Valid accuracy:', score[1])
