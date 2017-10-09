@@ -56,6 +56,7 @@ def evaluateYearbook(Predictor):
     image_path = path.join(YEARBOOK_VALID_PATH, image_gr_truth[0])
     pred_year = predictor.predict(image_path)
     truth_year = int(image_gr_truth[1])
+    print(count, pred_year, truth_year)
     l1_dist += abs(pred_year[0] - truth_year)
     count=count+1
 
